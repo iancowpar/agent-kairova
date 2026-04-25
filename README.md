@@ -4,7 +4,7 @@ A four-agent job search system built on Claude AI.
 
 Most job search tools help you apply faster. Agent Kairova helps you apply smarter — surfacing the right roles before they're picked over, turning your publishing into an inbound pipeline, and getting sharper about what's actually working over time.
 
-[**Live Demo →**](https://your-netlify-url.netlify.app)
+[**Live Demo →**](https://comfy-bonbon-84943f.netlify.app/)
 
 ---
 
