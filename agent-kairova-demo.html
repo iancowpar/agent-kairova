@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Kairova — Live Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+
+/* ── DESIGN TOKENS ─────────────────────────────────────────── */
+:root {
+  --bg:#090d14; --surface:#0f1623; --surface2:#161e2e; --surface3:#1c2537;
+  --border:#1e2d45; --text:#e2e8f0; --text-dim:#2d3f55; --text-muted:#64748b;
+  --success:#10b981; --warn:#f59e0b; --removed:#ef4444; --info:#3b82f6;
+  --shadow:none; --shadow-md:none; --shadow-lg:none;
+  --card-radius:10px; --input-bg:#161e2e;
+  --term-bg:#090d14; --term-chrome:#0f1623;
+}
+[data-theme="light"] {
+  --bg:#f0f4f8; --surface:#ffffff; --surface2:#f7f9fc; --surface3:#eef2f7;
+  --border:#dde3ec; --text:#0f172a; --text-dim:#c8d3e0; --text-muted:#6b7a8d;
+  --success:#059669; --warn:#b45309; --removed:#dc2626; --info:#2563eb;
+  --shadow:0 1px 3px rgba(15,23,42,.07),0 1px 2px rgba(15,23,42,.05);
+  --shadow-md:0 4px 12px rgba(15,23,42,.08),0 2px 4px rgba(15,23,42,.05);
+  --shadow-lg:0 10px 24px rgba(15,23,42,.10),0 4px 8px rgba(15,23,42,.06);
+  --card-radius:12px; --input-bg:#f0f4f8;
+  --term-bg:#1a2035; --term-chrome:#1e2640;
+}
+
+/* ── BASE ───────────────────────────────────────────────────── */
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;transition:background .2s,color .2s;}
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;box-shadow:var(--shadow);}
+.brand{font-size:16px;font-weight:800;letter-spacing:-.6px;}
+.brand em{color:#10b981;font-style:normal;}
+.header-meta{font-size:11px;color:var(--text-muted);font-family:'SF Mono',monospace;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.speed-label{font-size:11px;color:var(--text-muted);font-family:monospace;}
+.speed-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);padding:4px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'SF Mono',monospace;transition:all .15s;}
+.speed-btn.active{border-color:#10b981;color:#10b981;background:rgba(16,185,129,.08);}
+/* theme toggle */
+.theme-toggle{display:flex;align-items:center;gap:7px;margin-left:6px;}
+.toggle-track{width:40px;height:22px;border-radius:11px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;}
+[data-theme="dark"] .toggle-track{background:#1e2d45;}
+[data-theme="light"] .toggle-track{background:#dde3ec;}
+.toggle-knob{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#10b981;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+[data-theme="light"] .toggle-knob{transform:translateX(18px);}
+.toggle-icon{font-size:13px;line-height:1;}
+
+/* ── TABS ────────────────────────────────────────────────────── */
+.agent-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.agent-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 12px;cursor:pointer;border:none;background:transparent;color:var(--text-muted);font-size:11.5px;transition:all .15s;border-bottom:2px solid transparent;}
+.agent-tab:hover{background:var(--surface2);color:var(--text);}
+.agent-tab.active{color:var(--text);background:var(--surface2);border-bottom-color:var(--tc,#10b981);}
+.tab-num{font-family:'SF Mono',monospace;font-size:9px;color:var(--tc,var(--text-dim));margin-bottom:2px;font-weight:700;letter-spacing:1.5px;}
+.agent-tab.active .tab-num{color:var(--tc,#10b981);}
+.tab-name{font-weight:600;white-space:nowrap;font-size:11px;}
+.tab-status{font-size:9px;color:var(--text-dim);margin-top:2px;}
+.agent-tab.t-running .tab-status{color:var(--warn);}
+.agent-tab.t-done .tab-status{color:var(--success);}
+[data-theme="light"] .agent-tab:hover{background:var(--surface3);}
+[data-theme="light"] .agent-tab.active{background:var(--bg);}
+
+/* ── MAIN ─────────────────────────────────────────────────────── */
+main{flex:1;overflow:hidden;display:flex;}
+.agent-panel,.dash-panel{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.agent-panel.active,.dash-panel.active{display:flex;}
+
+/* ── IDLE VIEW ───────────────────────────────────────────────── */
+.idle-view{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);}
+.idle-card{max-width:520px;width:100%;text-align:center;padding:44px 32px;background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);box-shadow:var(--shadow-md);}
+[data-theme="light"] .idle-card{background:#fff;}
+.idle-icon{width:60px;height:60px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 20px;}
+.idle-card h1{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:6px;}
+.idle-schedule{font-family:'SF Mono',monospace;font-size:11px;color:var(--text-muted);margin-bottom:16px;}
+.idle-card p{font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:32px;}
+.run-btn{border:none;color:#fff;font-weight:700;font-size:14px;padding:12px 32px;border-radius:8px;cursor:pointer;transition:all .15s;letter-spacing:-.3px;}
+[data-theme="light"] .run-btn{color:#fff;}
+.run-btn:hover{opacity:.9;transform:translateY(-1px);}
+
+/* ── TERMINAL CHROME ─────────────────────────────────────────── */
+.running-view{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.agent-panel.s-running .running-view{display:flex;}
+.agent-panel.s-running .idle-view{display:none;}
+.agent-panel.s-complete .running-view,.agent-panel.s-complete .idle-view{display:none;}
+.term-header{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:var(--term-chrome);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;}
+.term-title{display:flex;align-items:center;gap:8px;font-family:'SF Mono',monospace;font-size:11px;color:#94a3b8;}
+.term-dot{width:8px;height:8px;border-radius:50%;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.term-actions{display:flex;gap:6px;}
+.term-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#94a3b8;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .15s;}
+.term-btn:hover{color:#e2e8f0;border-color:rgba(255,255,255,.2);}
+.term-body{flex:1;overflow-y:auto;padding:16px 20px;font-family:'SF Mono','Fira Code','Monaco',monospace;font-size:12px;line-height:1.8;background:var(--term-bg);}
+.tl{display:flex;gap:10px;opacity:0;transform:translateY(3px);transition:opacity .18s,transform .18s;}
+.tl.vis{opacity:1;transform:translateY(0);}
+.tl-time{color:#334155;flex-shrink:0;min-width:66px;}
+.tl-text{flex:1;}
+.tl-text.dim{color:#334155;}
+.tl-text.success{color:#10b981;}
+.tl-text.warn{color:#f59e0b;}
+.tl-text.removed{color:#ef4444;}
+.tl-text.accent{color:var(--ac,#10b981);}
+.tl-text.bold{font-weight:700;}
+.tl-text.accent.bold{color:var(--ac,#10b981);font-weight:700;}
+.cursor{display:inline-block;width:7px;height:13px;animation:blink 1s infinite;vertical-align:middle;margin-left:2px;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.deliver-bar{padding:12px 20px;background:var(--term-chrome);border-top:1px solid rgba(255,255,255,.07);display:none;justify-content:center;gap:10px;flex-shrink:0;}
+.deliver-bar.show{display:flex;}
+.deliver-btn{border:none;color:#fff;font-weight:700;font-size:13px;padding:10px 26px;border-radius:7px;cursor:pointer;transition:all .15s;}
+.deliver-btn:hover{opacity:.9;transform:translateY(-1px);}
+
+/* ── COMPLETE VIEW ───────────────────────────────────────────── */
+.complete-view{display:none;flex:1;overflow:hidden;}
+.agent-panel.s-complete .complete-view{display:flex;}
+.split-term{width:320px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.split-term .term-body{font-size:10px;opacity:.45;}
+.d-panel{flex:1;overflow-y:auto;background:var(--surface);}
+[data-theme="light"] .d-panel{background:var(--bg);}
+.d-inner{padding:26px 28px;max-width:680px;}
+
+/* ── DELIVERABLE COMPONENTS ─────────────────────────────────── */
+.d-hdr{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.d-label{font-family:'SF Mono',monospace;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--ac,#10b981);margin-bottom:7px;}
+.d-title{font-size:20px;font-weight:700;letter-spacing:-.5px;margin-bottom:3px;}
+.d-sub{font-size:11px;color:var(--text-muted);}
+.d-sec{margin-bottom:22px;}
+.d-sec-label{font-family:'SF Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:9px;}
+.d-box{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--ac,#10b981);border-radius:8px;padding:13px 16px;margin-bottom:12px;font-size:13px;line-height:1.7;box-shadow:var(--shadow);}
+[data-theme="light"] .d-box{background:#fff;}
+.role-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--card-radius);padding:14px 16px;margin-bottom:9px;transition:all .15s;box-shadow:var(--shadow);}
+[data-theme="light"] .role-card{background:#fff;}
+.role-card:hover{border-color:var(--ac,#10b981);box-shadow:var(--shadow-md);}
+.role-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.role-co{font-weight:700;font-size:14px;}
+.role-ti{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+.tier-badge{font-family:'SF Mono',monospace;font-size:9px;padding:3px 8px;border-radius:4px;font-weight:700;letter-spacing:.5px;}
+.t1{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.25);}
+.t2{background:rgba(249,115,22,.1);color:#f97316;border:1px solid rgba(249,115,22,.2);}
+[data-theme="light"] .t1{background:#ecfdf5;color:#059669;border-color:#a7f3d0;}
+[data-theme="light"] .t2{background:#fff7ed;color:#ea580c;border-color:#fed7aa;}
+.role-meta{display:flex;gap:12px;font-size:11px;color:var(--text-muted);margin-top:5px;flex-wrap:wrap;}
+.role-path{font-size:11px;margin-top:4px;}
+.pw{color:#10b981;} .psw{color:#f59e0b;} .pc{color:var(--text-muted);}
+[data-theme="light"] .pw{color:#059669;} [data-theme="light"] .psw{color:#b45309;}
+.role-acts{display:flex;gap:7px;margin-top:9px;align-items:center;}
+.ra-btn{font-size:11px;padding:4px 11px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;}
+.ra-btn:hover{border-color:var(--ac,#10b981);color:var(--ac,#10b981);}
+.ra-btn.p{border-color:var(--ac,#10b981);color:var(--ac,#10b981);background:rgba(16,185,129,.06);}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;}
+.stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--card-radius);padding:12px;text-align:center;box-shadow:var(--shadow);}
+[data-theme="light"] .stat-card{background:#fff;}
+.stat-n{font-size:24px;font-weight:800;font-family:'SF Mono',monospace;}
+.stat-l{font-size:10px;color:var(--text-muted);margin-top:2px;}
+.score-row{display:flex;align-items:center;gap:9px;margin-bottom:5px;}
+.score-lbl{width:150px;font-size:11.5px;color:var(--text-muted);flex-shrink:0;}
+.score-track{flex:1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+[data-theme="light"] .score-track{background:var(--surface3);}
+.score-fill{height:100%;border-radius:3px;}
+.score-val{font-family:'SF Mono',monospace;font-size:10px;color:var(--text-muted);width:24px;text-align:right;}
+.eng-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--card-radius);padding:14px 16px;margin-bottom:9px;box-shadow:var(--shadow);}
+[data-theme="light"] .eng-card{background:#fff;}
+.eng-sig{font-family:'SF Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
+.sig-hot{color:#ef4444;} .sig-warm{color:#f59e0b;}
+[data-theme="light"] .sig-hot{color:#dc2626;} [data-theme="light"] .sig-warm{color:#b45309;}
+.eng-person{font-weight:700;font-size:14px;}
+.eng-role{font-size:11.5px;color:var(--text-muted);margin:2px 0 8px;}
+.eng-quote{font-size:13px;font-style:italic;border-left:2px solid var(--ac,#10b981);padding-left:10px;margin-bottom:10px;color:var(--text-muted);}
+.eng-draft{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 13px;font-size:12px;color:var(--text-muted);line-height:1.65;margin-bottom:9px;}
+[data-theme="light"] .eng-draft{background:var(--surface2);}
+.q-card{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--ac,#10b981);border-radius:8px;padding:12px 15px;margin-bottom:9px;box-shadow:var(--shadow);}
+[data-theme="light"] .q-card{background:#fff;}
+.q-num{font-family:'SF Mono',monospace;font-size:9px;color:var(--ac,#10b981);margin-bottom:5px;letter-spacing:1px;}
+.q-text{font-size:13px;font-style:italic;line-height:1.65;}
+.next-bar{padding:12px 22px;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;box-shadow:var(--shadow);}
+.next-btn{border:none;color:#fff;font-weight:700;font-size:12px;padding:9px 20px;border-radius:7px;cursor:pointer;transition:all .15s;}
+.next-btn:hover{opacity:.9;transform:translateY(-1px);}
+.next-hint{font-size:11px;color:var(--text-dim);}
+
+/* ── DASHBOARD ───────────────────────────────────────────────── */
+.dash-panel{overflow-y:auto;background:var(--bg);}
+.dash-inner{padding:28px 32px;max-width:1000px;margin:0 auto;}
+.dash-greeting{margin-bottom:24px;}
+.dash-greeting h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px;}
+.dash-greeting p{font-size:13px;color:var(--text-muted);}
+.dash-greeting span{color:#10b981;font-weight:600;}
+[data-theme="light"] .dash-greeting h2{color:#0f172a;}
+
+/* KPI Cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:18px 20px;position:relative;overflow:hidden;box-shadow:var(--shadow-md);transition:box-shadow .2s,transform .15s;}
+.kpi-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px);}
+.kpi-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
+.kpi-value{font-size:28px;font-weight:800;font-family:'SF Mono',monospace;letter-spacing:-1px;line-height:1;}
+.kpi-label{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:500;}
+.kpi-sub{font-size:10px;color:var(--text-dim);margin-top:2px;font-family:'SF Mono',monospace;}
+.kpi-bar{position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 var(--card-radius) var(--card-radius);}
+[data-theme="light"] .kpi-card{background:#fff;}
+
+/* Comp Slider + Pipeline row */
+.dash-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;}
+.dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:20px 22px;box-shadow:var(--shadow-md);}
+[data-theme="light"] .dash-card{background:#fff;}
+.dash-card-label{font-family:'SF Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:14px;}
+.comp-display{display:flex;align-items:baseline;gap:6px;margin-bottom:14px;}
+.comp-value{font-size:28px;font-weight:800;font-family:'SF Mono',monospace;letter-spacing:-1px;color:var(--text);}
+.comp-label{font-size:13px;color:var(--text-muted);}
+.comp-slider-wrap{position:relative;margin-bottom:10px;}
+input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:3px;background:var(--border);outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#10b981;cursor:pointer;border:2px solid var(--surface);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+[data-theme="light"] input[type=range]::-webkit-slider-thumb{border-color:#fff;}
+input[type=range]::-webkit-slider-runnable-track{background:linear-gradient(to right,#10b981 var(--pct,40%),var(--border) var(--pct,40%));height:5px;border-radius:3px;}
+.comp-range-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);font-family:'SF Mono',monospace;margin-top:5px;}
+.comp-floor-note{font-size:11px;color:var(--text-muted);margin-top:8px;display:flex;align-items:center;gap:5px;}
+.comp-floor-note em{background:rgba(16,185,129,.1);color:#10b981;border-radius:4px;padding:1px 6px;font-style:normal;font-size:10px;font-family:monospace;}
+[data-theme="light"] .comp-floor-note em{background:#ecfdf5;color:#059669;}
+/* pipeline status */
+.pipeline-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.pipeline-row:last-child{border-bottom:none;}
+.pipeline-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.pipeline-label{font-size:12px;flex:1;}
+.pipeline-val{font-size:12px;font-weight:700;font-family:'SF Mono',monospace;}
+
+/* Feedback section */
+.dash-section-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+.dash-section-title{font-size:14px;font-weight:700;}
+.dash-section-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.learning-badge{font-size:10px;font-family:'SF Mono',monospace;background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2);border-radius:5px;padding:3px 9px;white-space:nowrap;}
+[data-theme="light"] .learning-badge{background:#fffbeb;color:#b45309;border-color:#fde68a;}
+.feedback-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:15px 17px;margin-bottom:9px;transition:all .15s;box-shadow:var(--shadow);}
+[data-theme="light"] .feedback-card{background:#fff;}
+.feedback-card:hover{box-shadow:var(--shadow-md);}
+.fc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.fc-meta{flex:1;}
+.fc-company{font-weight:700;font-size:14px;margin-bottom:2px;}
+.fc-title{font-size:12px;color:var(--text-muted);}
+.fc-badges{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;}
+.fc-badge{font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface2);}
+[data-theme="light"] .fc-badge{background:var(--surface3);}
+.fc-badge.warm{color:#10b981;border-color:rgba(16,185,129,.25);background:rgba(16,185,129,.06);}
+.fc-badge.semi{color:#f59e0b;border-color:rgba(245,158,11,.25);background:rgba(245,158,11,.06);}
+.fc-badge.cold{color:var(--text-muted);}
+.fc-badge.tier1{color:#10b981;border-color:rgba(16,185,129,.25);background:rgba(16,185,129,.08);font-weight:700;}
+.fc-badge.tier2{color:#f97316;border-color:rgba(249,115,22,.2);background:rgba(249,115,22,.06);font-weight:700;}
+[data-theme="light"] .fc-badge.warm{background:#ecfdf5;color:#059669;border-color:#a7f3d0;}
+[data-theme="light"] .fc-badge.semi{background:#fffbeb;color:#b45309;border-color:#fde68a;}
+[data-theme="light"] .fc-badge.tier1{background:#ecfdf5;color:#059669;border-color:#a7f3d0;}
+[data-theme="light"] .fc-badge.tier2{background:#fff7ed;color:#ea580c;border-color:#fed7aa;}
+.fc-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.thumb-btn{display:flex;align-items:center;gap:4px;padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);font-size:13px;cursor:pointer;transition:all .18s;font-weight:600;color:var(--text-muted);}
+[data-theme="light"] .thumb-btn{background:var(--surface3);}
+.thumb-btn:hover{transform:scale(1.05);}
+.thumb-btn.up:hover,.thumb-btn.up.voted{border-color:#10b981;background:rgba(16,185,129,.1);color:#10b981;}
+.thumb-btn.down:hover,.thumb-btn.down.voted{border-color:#ef4444;background:rgba(239,68,68,.08);color:#ef4444;}
+[data-theme="light"] .thumb-btn.up.voted{background:#ecfdf5;color:#059669;border-color:#a7f3d0;}
+[data-theme="light"] .thumb-btn.down.voted{background:#fef2f2;color:#dc2626;border-color:#fecaca;}
+.thumb-count{font-size:11px;font-family:'SF Mono',monospace;}
+.fc-feedback-note{margin-top:9px;padding:8px 12px;background:var(--surface2);border-radius:7px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);display:none;line-height:1.55;}
+[data-theme="light"] .fc-feedback-note{background:var(--surface3);}
+.fc-feedback-note.show{display:block;}
+.fc-feedback-note strong{color:var(--text);font-weight:600;}
+
+/* Learning progress */
+.learning-progress{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:18px 20px;box-shadow:var(--shadow-md);}
+[data-theme="light"] .learning-progress{background:#fff;}
+.lp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.lp-title{font-size:13px;font-weight:600;}
+.lp-count{font-family:'SF Mono',monospace;font-size:11px;color:var(--text-muted);}
+.lp-track{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-bottom:8px;position:relative;}
+[data-theme="light"] .lp-track{background:var(--surface3);}
+.lp-fill{height:100%;background:linear-gradient(90deg,#10b981,#3b82f6);border-radius:4px;transition:width .4s ease;}
+.lp-milestones{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);font-family:'SF Mono',monospace;}
+.lp-milestone.reached{color:#10b981;}
+[data-theme="light"] .lp-milestone.reached{color:#059669;}
+.lp-desc{font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.55;}
+
+/* scrollbar */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Agent <em>Kairova</em></div>
+  <div class="header-meta">Thursday, April 24, 2026 · Boston, MA</div>
+  <div class="header-right">
+    <span class="speed-label">Speed:</span>
+    <button class="speed-btn active" data-spd="1">1×</button>
+    <button class="speed-btn" data-spd="0.5">2×</button>
+    <button class="speed-btn" data-spd="0.25">4×</button>
+    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+      <span class="toggle-icon">🌙</span>
+      <div class="toggle-track"><div class="toggle-knob"></div></div>
+      <span class="toggle-icon">☀️</span>
+    </div>
+  </div>
+</header>
+
+<nav class="agent-tabs" id="tabs">
+  <button class="agent-tab active" data-panel="dash" style="--tc:#6366f1">
+    <div class="tab-num">⊞</div><div class="tab-name">Dashboard</div><div class="tab-status" id="ts-dash">Live</div>
+  </button>
+</nav>
+<main id="main">
+
+<!-- DASHBOARD PANEL -->
+<div class="dash-panel active" id="dash-panel">
+<div class="dash-inner">
+
+  <div class="dash-greeting">
+    <h2>Good morning, Ian.</h2>
+    <p>Agent Kairova ran its daily search at <span>10:00 AM</span> today. 26 live roles found, 2 stale caught before they reached you.</p>
+  </div>
+
+  <!-- KPI Grid -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(16,185,129,.12)">🎯</div>
+      <div class="kpi-value" style="color:#10b981">26</div>
+      <div class="kpi-label">Live Roles Found</div>
+      <div class="kpi-sub">4 Tier 1 · 22 Tier 2</div>
+      <div class="kpi-bar" style="background:#10b981"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(99,102,241,.12)">📨</div>
+      <div class="kpi-value" style="color:#6366f1" id="kpi-applied">0</div>
+      <div class="kpi-label">Applications Sent</div>
+      <div class="kpi-sub">0 responses · 0% rate</div>
+      <div class="kpi-bar" style="background:#6366f1"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(168,85,247,.12)">✍️</div>
+      <div class="kpi-value" style="color:#a855f7" id="kpi-cls">2</div>
+      <div class="kpi-label">Cover Letters Made</div>
+      <div class="kpi-sub">signal-to-action · trust-gap</div>
+      <div class="kpi-bar" style="background:#a855f7"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(245,158,11,.12)">🛡️</div>
+      <div class="kpi-value" style="color:#f59e0b">2</div>
+      <div class="kpi-label">Stale Blocked</div>
+      <div class="kpi-sub">live-check gate active</div>
+      <div class="kpi-bar" style="background:#f59e0b"></div>
+    </div>
+  </div>
+
+  <!-- Comp Slider + Pipeline -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-label">Comp Target · Future Runs</div>
+      <div class="comp-display">
+        <div class="comp-value" id="comp-display-val">$190,000</div>
+        <div class="comp-label">/ year</div>
+      </div>
+      <div class="comp-slider-wrap">
+        <input type="range" id="comp-slider" min="130000" max="280000" value="190000" step="5000">
+      </div>
+      <div class="comp-range-labels"><span>$130K</span><span>$205K</span><span>$280K</span></div>
+      <div class="comp-floor-note">
+        <em>Floor $155K</em>
+        Roles below this are automatically excluded
+      </div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Pipeline Status</div>
+      <div class="pipeline-row">
+        <div class="pipeline-dot" style="background:#f59e0b"></div>
+        <div class="pipeline-label">Interview scheduled</div>
+        <div class="pipeline-val">1</div>
+      </div>
+      <div class="pipeline-row">
+        <div class="pipeline-dot" style="background:#3b82f6"></div>
+        <div class="pipeline-label">Outreach pending</div>
+        <div class="pipeline-val">2</div>
+      </div>
+      <div class="pipeline-row">
+        <div class="pipeline-dot" style="background:#6366f1"></div>
+        <div class="pipeline-label">Applications sent</div>
+        <div class="pipeline-val">0</div>
+      </div>
+      <div class="pipeline-row">
+        <div class="pipeline-dot" style="background:#10b981"></div>
+        <div class="pipeline-label">Responses received</div>
+        <div class="pipeline-val">0</div>
+      </div>
+      <div class="pipeline-row">
+        <div class="pipeline-dot" style="background:#6b7280"></div>
+        <div class="pipeline-label">Follow-ups due Apr 30</div>
+        <div class="pipeline-val">2</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feedback Section -->
+  <div style="margin-bottom:24px;">
+    <div class="dash-section-header">
+      <div>
+        <div class="dash-section-title">Rate Today's Recommendations</div>
+        <div class="dash-section-sub">Your feedback trains the scoring model. 👍 reinforces patterns. 👎 re-weights the signal.</div>
+      </div>
+      <div class="learning-badge" id="learning-badge">0 / 5 signals to calibration</div>
+    </div>
+
+    <!-- Role feedback cards -->
+    <div class="feedback-card" id="fc-0">
+      <div class="fc-top">
+        <div class="fc-meta">
+          <div class="fc-company">Workhuman ★</div>
+          <div class="fc-title">Principal PM, Workforce Intelligence</div>
+          <div class="fc-badges">
+            <span class="fc-badge tier1">TIER 1</span>
+            <span class="fc-badge warm">↗ Warm path</span>
+            <span class="fc-badge">Remote US</span>
+            <span class="fc-badge">Est. $175K–$210K</span>
+            <span class="fc-badge">employee-experience</span>
+          </div>
+        </div>
+        <div class="fc-actions">
+          <button class="thumb-btn up" onclick="vote(0,'up')" id="fc-0-up">👍 <span class="thumb-count" id="fc-0-up-ct">0</span></button>
+          <button class="thumb-btn down" onclick="vote(0,'down')" id="fc-0-down">👎 <span class="thumb-count" id="fc-0-down-ct">0</span></button>
+        </div>
+      </div>
+      <div class="fc-feedback-note" id="fc-0-note"></div>
+    </div>
+
+    <div class="feedback-card" id="fc-1">
+      <div class="fc-top">
+        <div class="fc-meta">
+          <div class="fc-company">Leapsome</div>
+          <div class="fc-title">Senior PM, AI Features</div>
+          <div class="fc-badges">
+            <span class="fc-badge tier1">TIER 1</span>
+            <span class="fc-badge semi">↗ Semi-warm</span>
+            <span class="fc-badge">Remote US</span>
+            <span class="fc-badge">Est. $160K–$195K</span>
+            <span class="fc-badge">enterprise-ai</span>
+          </div>
+        </div>
+        <div class="fc-actions">
+          <button class="thumb-btn up" onclick="vote(1,'up')" id="fc-1-up">👍 <span class="thumb-count" id="fc-1-up-ct">0</span></button>
+          <button class="thumb-btn down" onclick="vote(1,'down')" id="fc-1-down">👎 <span class="thumb-count" id="fc-1-down-ct">0</span></button>
+        </div>
+      </div>
+      <div class="fc-feedback-note" id="fc-1-note"></div>
+    </div>
+
+    <div class="feedback-card" id="fc-2">
+      <div class="fc-top">
+        <div class="fc-meta">
+          <div class="fc-company">Perceptyx</div>
+          <div class="fc-title">Senior PM, People Analytics</div>
+          <div class="fc-badges">
+            <span class="fc-badge tier1">TIER 1</span>
+            <span class="fc-badge cold">→ Cold</span>
+            <span class="fc-badge">Remote US</span>
+            <span class="fc-badge">$155K–$185K</span>
+            <span class="fc-badge">org-health</span>
+          </div>
+        </div>
+        <div class="fc-actions">
+          <button class="thumb-btn up" onclick="vote(2,'up')" id="fc-2-up">👍 <span class="thumb-count" id="fc-2-up-ct">0</span></button>
+          <button class="thumb-btn down" onclick="vote(2,'down')" id="fc-2-down">👎 <span class="thumb-count" id="fc-2-down-ct">0</span></button>
+        </div>
+      </div>
+      <div class="fc-feedback-note" id="fc-2-note"></div>
+    </div>
+
+    <div class="feedback-card" id="fc-3">
+      <div class="fc-top">
+        <div class="fc-meta">
+          <div class="fc-company">15Five</div>
+          <div class="fc-title">Senior PM, AI Performance</div>
+          <div class="fc-badges">
+            <span class="fc-badge tier1">TIER 1</span>
+            <span class="fc-badge cold">→ Cold</span>
+            <span class="fc-badge">Remote US</span>
+            <span class="fc-badge">$132K–$170K</span>
+            <span class="fc-badge">employee-experience</span>
+          </div>
+        </div>
+        <div class="fc-actions">
+          <button class="thumb-btn up" onclick="vote(3,'up')" id="fc-3-up">👍 <span class="thumb-count" id="fc-3-up-ct">0</span></button>
+          <button class="thumb-btn down" onclick="vote(3,'down')" id="fc-3-down">👎 <span class="thumb-count" id="fc-3-down-ct">0</span></button>
+        </div>
+      </div>
+      <div class="fc-feedback-note" id="fc-3-note"></div>
+    </div>
+  </div>
+
+  <!-- Learning Progress -->
+  <div class="learning-progress" style="margin-bottom:32px;">
+    <div class="lp-header">
+      <div class="lp-title">Agent Learning Status</div>
+      <div class="lp-count" id="lp-count">0 signals collected</div>
+    </div>
+    <div class="lp-track"><div class="lp-fill" id="lp-fill" style="width:0%"></div></div>
+    <div class="lp-milestones">
+      <span class="lp-milestone" id="ms-0">0</span>
+      <span class="lp-milestone" id="ms-5">5 → score adj.</span>
+      <span class="lp-milestone" id="ms-10">10 → tier recal.</span>
+      <span class="lp-milestone" id="ms-20">20 → full reweight</span>
+    </div>
+    <div class="lp-desc" id="lp-desc">No signals yet. Rate your recommendations above to start training the scoring model. Once you hit 5 signals, the agent begins adjusting Tier 1/2 thresholds to match your actual preferences.</div>
+  </div>
+
+</div><!-- /dash-inner -->
+</div><!-- /dash-panel -->
+
+</main>
+
+<script>
+/* ── AGENT DATA ─────────────────────────────────────────────── */
+const A = [
+  {
+    color:'#10b981', icon:'🔍', name:'Daily Search', schedule:'Weekdays · 10:00 AM',
+    desc:'Searches 17+ sources before LinkedIn indexes them. Scores every role against your profile. Runs a live-check gate on every URL. Delivers a ranked briefing with one high-leverage move.',
+    lines:[
+      {t:'10:00:01',x:'accent bold',s:'Agent Kairova — Daily Search initializing...'},
+      {t:'10:00:01',x:'',s:'Loading profile.json → Ian Cowpar'},
+      {t:'',x:'dim',s:'  comp floor: $155,000  ·  target: $190,000  ·  remote-first'},
+      {t:'',x:'dim',s:'  mission: enterprise-ai, employee-experience, org-health'},
+      {t:'',x:'',s:''},
+      {t:'10:00:02',x:'',s:'Searching 17+ sources...'},
+      {t:'',x:'success',s:'  Greenhouse direct endpoints    ✓  847 active postings scanned'},
+      {t:'',x:'success',s:'  Lever direct endpoints         ✓  312 active postings scanned'},
+      {t:'',x:'success',s:'  PM-specific boards             ✓  156 postings (24hr filter)'},
+      {t:'',x:'success',s:'  Startup boards                 ✓   89 postings (24hr filter)'},
+      {t:'',x:'success',s:'  Broad boards                   ✓  234 postings (24hr filter)'},
+      {t:'',x:'',s:''},
+      {t:'10:00:08',x:'bold',s:'Candidate pool: 31 roles  ·  Running live-check on every URL...'},
+      {t:'',x:'success',s:'  ✓  Workhuman — Principal PM, Workforce Intelligence'},
+      {t:'',x:'success',s:'  ✓  Leapsome — Senior PM, AI Features'},
+      {t:'',x:'success',s:'  ✓  Perceptyx — Senior PM, People Analytics'},
+      {t:'',x:'removed',s:'  ✗  [REMOVED] Built In NYC listing — dropped (removed Jun 2025)'},
+      {t:'',x:'success',s:'  ✓  15Five — Senior PM, Performance AI'},
+      {t:'',x:'removed',s:'  ✗  [REMOVED] Greenhouse listing 404 — dropped'},
+      {t:'',x:'dim',s:'  ... 25 more checked'},
+      {t:'',x:'',s:''},
+      {t:'10:00:14',x:'bold',s:'Live confirmed: 26  ·  Scoring against profile...'},
+      {t:'',x:'success',s:'  Workhuman      ▓▓▓▓▓▓▓▓▓░  94  →  TIER 1  ★'},
+      {t:'',x:'success',s:'  Leapsome       ▓▓▓▓▓▓▓▓░░  88  →  TIER 1'},
+      {t:'',x:'success',s:'  Perceptyx      ▓▓▓▓▓▓▓░░░  76  →  TIER 1'},
+      {t:'',x:'success',s:'  15Five         ▓▓▓▓▓▓░░░░  71  →  TIER 1'},
+      {t:'',x:'',s:'  Betterworks    ▓▓▓▓▓░░░░░  63  →  TIER 2'},
+      {t:'',x:'dim',s:'  ... 21 more scored'},
+      {t:'',x:'',s:''},
+      {t:'10:00:18',x:'',s:'Connection check: scanning 847 LinkedIn connections...'},
+      {t:'',x:'success',s:'  Workhuman — 3 connections  →  warm path'},
+      {t:'',x:'dim',s:'    George Rogers → Kevin Heinzelman (SVP Product)'},
+      {t:'',x:'warn',s:'  Leapsome — 1 connection  →  semi-warm'},
+      {t:'',x:'dim',s:'  Perceptyx — 0 connections  →  cold'},
+      {t:'',x:'',s:''},
+      {t:'10:00:21',x:'',s:'Drafting cover letters for Tier 1 roles...'},
+      {t:'',x:'success',s:'  Workhuman (signal-to-action)    ████████████████████  ✓'},
+      {t:'',x:'success',s:'  Leapsome  (trust-gap-adoption)  ████████████████████  ✓'},
+      {t:'',x:'',s:''},
+      {t:'10:00:28',x:'accent bold',s:'Highest leverage move: warm intro via George Rogers → Workhuman'},
+      {t:'',x:'',s:''},
+      {t:'10:00:29',x:'success',s:'Delivering briefing → ian.cowpar@gmail.com  ✓'},
+      {t:'10:00:29',x:'success',s:'Saving → /daily-reports/2026-04-24.md  ✓'},
+      {t:'',x:'',s:''},
+      {t:'',x:'dim',s:'  ──────────────────────────────────────────────────────'},
+      {t:'',x:'bold',s:'  31 found  →  26 live  →  4 Tier 1  →  2 cover letters drafted'},
+      {t:'',x:'dim',s:'  ──────────────────────────────────────────────────────'},
+    ],
+    deliverable:`<div class="d-hdr"><div class="d-label">Agent 01 · Deliverable</div><div class="d-title">Daily Briefing</div><div class="d-sub">Thursday, April 24, 2026 · 10:30 AM · 26 roles checked · 2 stale caught</div></div>
+<div class="d-sec"><div class="d-sec-label">⚡ Highest Leverage Move Today</div><div class="d-box">Warm intro request via <strong>George Rogers → Kevin Heinzelman</strong> (SVP Product, Workhuman). Not a job ask — a conversation about org signal problems that maps directly to their product. George is warm. Send today.</div></div>
+<div class="d-sec"><div class="d-sec-label">Tier 1 Roles · 4 found</div>
+<div class="role-card"><div class="role-top"><div><div class="role-co">Workhuman ★</div><div class="role-ti">Principal PM, Workforce Intelligence</div></div><span class="tier-badge t1">TIER 1</span></div><div class="role-meta"><span>Remote US</span><span>Est. $175K–$210K</span><span>Greenhouse direct</span></div><div class="role-path pw">↗ Warm — George Rogers → Kevin Heinzelman (SVP Product)</div><div class="role-acts"><button class="ra-btn p">View Cover Letter</button><button class="ra-btn">Draft Outreach</button></div></div>
+<div class="role-card"><div class="role-top"><div><div class="role-co">Leapsome</div><div class="role-ti">Senior PM, AI Features</div></div><span class="tier-badge t1">TIER 1</span></div><div class="role-meta"><span>Remote US</span><span>Est. $160K–$195K</span><span>Greenhouse direct</span></div><div class="role-path psw">↗ Semi-warm — 1 connection found</div><div class="role-acts"><button class="ra-btn p">View Cover Letter</button></div></div>
+<div class="role-card"><div class="role-top"><div><div class="role-co">Perceptyx</div><div class="role-ti">Senior PM, People Analytics</div></div><span class="tier-badge t1">TIER 1</span></div><div class="role-meta"><span>Remote US</span><span>$155K–$185K</span><span>Lever direct</span></div><div class="role-path pc">→ Cold — no connections found</div><div class="role-acts"><button class="ra-btn">Draft Cover Letter</button></div></div>
+<div style="font-size:11px;color:var(--text-dim);padding:5px 2px">+ 1 more Tier 1 role in full report</div></div>
+<div class="d-sec"><div class="d-sec-label">📅 Schedule Intelligence</div><div class="d-box" style="font-size:13px;line-height:1.85">· Apply to Workhuman today — warm path is open now<br>· Follow-up due Apr 30: George Rogers intro outreach<br>· Follow-up due Apr 30: Liz Pierce InMail (Microsoft Viva)<br>· Interview: Blink · <strong>Monday Apr 28 · Morning</strong> — prep agent fires tonight at 8pm</div></div>
+<div class="d-sec"><div class="d-sec-label">Tier 2 · 22 roles</div><div style="font-size:13px;color:var(--text-muted);padding:11px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">Betterworks, Qualtrics (verify remote), 15Five (borderline comp), Poppulo, Medallia (verify remote) + 17 more. Full list in /daily-reports/.</div></div>`
+  },
+  {
+    color:'#a855f7', icon:'📡', name:'Content Engagement', schedule:'Tuesday & Friday · 9:00 AM',
+    desc:'Monitors Substack and LinkedIn engagement. Cross-references every engager against target companies and your connections. Turns publishing into an inbound pipeline — not just brand-building.',
+    lines:[
+      {t:'09:00:01',x:'accent bold',s:'Agent Kairova — Content Engagement initializing...'},
+      {t:'09:00:01',x:'dim',s:'Checking since last run: Tuesday, April 22, 2026'},
+      {t:'',x:'',s:''},
+      {t:'09:00:02',x:'',s:'Scanning Substack: theunofficialleader.substack.com...'},
+      {t:'',x:'',s:'  "The Signal-to-Action Problem" — 847 views, 23 comments'},
+      {t:'',x:'',s:'  "Why Your Engagement Score Is Lying to You" — 612 views, 14 comments'},
+      {t:'',x:'',s:''},
+      {t:'09:00:04',x:'',s:'Scanning LinkedIn post engagement...'},
+      {t:'',x:'dim',s:'  68 likes, 12 comments, 8 shares across 3 posts'},
+      {t:'',x:'',s:''},
+      {t:'09:00:06',x:'bold',s:'Total new engagers: 41  ·  Cross-referencing against target companies...'},
+      {t:'09:00:07',x:'',s:'Checking LinkedIn connections CSV (847 connections)...'},
+      {t:'',x:'',s:''},
+      {t:'09:00:08',x:'warn bold',s:'🔥  HIGH SIGNAL: Sarah Chen, VP Product at Leapsome'},
+      {t:'',x:'dim',s:'    Commented on: "The Signal-to-Action Problem"'},
+      {t:'',x:'',s:'    "This is exactly what we\'re wrestling with on our AI roadmap..."'},
+      {t:'',x:'dim',s:'    Target company match  ·  0 shared connections  ·  cold path'},
+      {t:'',x:'success',s:'    Drafting warm outreach...  ✓'},
+      {t:'',x:'',s:''},
+      {t:'09:00:10',x:'warn bold',s:'🔥  HIGH SIGNAL: Marcus Webb, Director of Product at Perceptyx'},
+      {t:'',x:'dim',s:'    Liked: "Why Your Engagement Score Is Lying to You"'},
+      {t:'',x:'success',s:'    Shared connection: Jennifer Kozak (mutual)  →  semi-warm'},
+      {t:'',x:'success',s:'    Drafting warm outreach...  ✓'},
+      {t:'',x:'',s:''},
+      {t:'09:00:13',x:'',s:'  3 more engagers with partial company match — below threshold'},
+      {t:'',x:'dim',s:'  35 engagers: no target company match — skipped'},
+      {t:'',x:'',s:''},
+      {t:'09:00:14',x:'success',s:'Saving to engagement-tracker.json  ✓'},
+      {t:'',x:'',s:''},
+      {t:'',x:'dim',s:'  ──────────────────────────────────────────────────────'},
+      {t:'',x:'bold',s:'  41 engagers  →  2 high-signal  →  2 outreach drafts ready'},
+      {t:'',x:'dim',s:'  ──────────────────────────────────────────────────────'},
+    ],
+    deliverable:`<div class="d-hdr"><div class="d-label">Agent 02 · Deliverable</div><div class="d-title">Engagement Summary</div><div class="d-sub">Tuesday, April 22, 2026 · 9:14 AM · 41 engagers checked</div></div>
+<div class="d-sec"><div class="d-sec-label">🔥 High Signal — Target Company Match</div>
+<div class="eng-card"><div class="eng-sig sig-hot">🔥 High Signal · Leapsome · Cold Path</div><div class="eng-person">Sarah Chen</div><div class="eng-role">VP Product, Leapsome · Commented on "The Signal-to-Action Problem"</div><div class="eng-quote">"This is exactly what we're wrestling with on our AI roadmap. The gap between signal and manager action is our biggest product challenge right now."</div><div class="d-sec-label" style="margin-bottom:7px">Drafted Outreach</div><div class="eng-draft">Sarah — your comment on the signal-to-action piece landed differently for me, because you're living this from the product side. The gap you're describing — between what the engagement signal says and what a manager actually does — is the specific problem I've been building around. I'd be happy to compare notes if you want.</div><div class="role-acts"><button class="ra-btn p">Send This</button><button class="ra-btn">Edit First</button></div></div>
+<div class="eng-card"><div class="eng-sig sig-warm">↗ Warm Signal · Perceptyx · Semi-warm Path</div><div class="eng-person">Marcus Webb</div><div class="eng-role">Director of Product, Perceptyx · Liked "Why Your Engagement Score Is Lying to You"</div><div class="d-sec-label" style="margin-bottom:7px">Shared Connection: Jennifer Kozak</div><div class="eng-draft">Marcus — saw you liked the piece on engagement score accuracy. I've been inside analytics pipelines where the score is technically right and operationally useless. Sounds like you've thought about this from the Perceptyx side. Happy to compare notes.</div><div class="role-acts"><button class="ra-btn p">Send This</button><button class="ra-btn">Edit First</button></div></div></div>`
+  },
+  {
+    color:'#3b82f6', icon:'🧠', name:'Interview Intelligence', schedule:'Fires 8pm night before each interview',
+    desc:'Researches the company\'s live operational reality. Builds an interviewer profile from published work. Surfaces the real problem under the job description. Delivers a full prep brief.',
+    lines:[
+      {t:'20:00:01',x:'accent bold',s:'Agent Kairova — Interview Intelligence initializing...'},
+      {t:'20:00:01',x:'',s:'Target: Blink · Senior Product Manager · 2026-04-28 morning'},
+      {t:'20:00:01',x:'dim',s:'Interviewer: Rosie Ridd (likely talent acquisition)'},
+      {t:'',x:'',s:''},
+      {t:'20:00:02',x:'',s:'Researching Blink operational reality...'},
+      {t:'',x:'success',s:'  Gartner MQ 2025: Challenger — Intranet Packaged Solutions  ✓'},
+      {t:'',x:'success',s:'  159% YoY growth (2024 BusinessWire)  ✓'},
+      {t:'',x:'success',s:'  Workday integration: "industry\'s most comprehensive" — verified  ✓'},
+      {t:'',x:'success',s:'  Enterprise customers: McDonald\'s, Nokia, easyJet, Domino\'s  ✓'},
+      {t:'',x:'success',s:'  HQ: Boston — commuter rail accessible from Methuen  ✓'},
+      {t:'',x:'',s:''},
+      {t:'20:00:06',x:'',s:'Researching competitive landscape...'},
+      {t:'',x:'success',s:'  Primary: Staffbase (EU-heavy), Beekeeper (direct overlap)  ✓'},
+      {t:'',x:'success',s:'  Workvivo (Zoom acquisition 2023) — enterprise push  ✓'},
+      {t:'',x:'',s:''},
+      {t:'20:00:09',x:'',s:'Analyzing real problem under the job description...'},
+      {t:'',x:'accent',s:'  → Integration failure is trust/adoption, not API'},
+      {t:'',x:'accent',s:'  → Deskless worker doesn\'t trust the system on the other end'},
+      {t:'',x:'accent',s:'  → Ian sees the org layer under the technical layer'},
+      {t:'',x:'',s:''},
+      {t:'20:00:12',x:'',s:'Building interviewer profile: Rosie Ridd...'},
+      {t:'',x:'dim',s:'  Call type: recruiter intro screen (~25 min, structured)'},
+      {t:'',x:'dim',s:'  Screening: comp, location, genuine interest, baseline markers'},
+      {t:'',x:'',s:''},
+      {t:'20:00:15',x:'success',s:'Drafting opening statement...  ✓'},
+      {t:'20:00:16',x:'success',s:'Drafting 4 questions that demonstrate scope...  ✓'},
+      {t:'',x:'',s:''},
+      {t:'',x:'dim',s:'  ──────────────────────────────────────────────────────'},
+      {t:'',x:'bold',s:'  Prep brief ready  ·  Delivering to ian.cowpar@gmail.com  ✓'},
+      {t:'',x:'dim',s:'  ──────────────────────────────────────────────────────'},
+    ],
+    deliverable:`<div class="d-hdr"><div class="d-label">Agent 03 · Deliverable</div><div class="d-title">Interview Prep Brief</div><div class="d-sub">Blink · Senior Product Manager · Monday, April 28, 2026 · Morning</div></div>
+<div class="d-sec"><div class="d-sec-label">The Real Problem Under the Job Description</div><div class="d-box">Blink's Workday integration works technically. The API connects. The data flows. The hard problem is that a 22-year-old warehouse worker opening the app between shifts doesn't trust the system on the other end. Enterprise integration at scale is a trust and adoption problem dressed up as a technical one. <strong>That's where Ian operates.</strong></div></div>
+<div class="d-sec"><div class="d-sec-label">Your Opening Statement</div><div class="d-box" style="font-style:italic">"My whole career has been inside complex human systems — organizations where the real leverage isn't obvious because it's buried in how people actually work. The hardest problems I've encountered aren't technical — they're about what happens at the seam between the system and the human. That gap is exactly where Blink operates."</div></div>
+<div class="d-sec"><div class="d-sec-label">4 Questions That Demonstrate Scope</div>
+<div class="q-card"><div class="q-num">Q1 — INTEGRATION REALITY</div><div class="q-text">"The Workday integration depth is real — but what does provisioning actually look like when you're working with an enterprise tenant that has complex org structures or non-standard field mappings?"</div></div>
+<div class="q-card"><div class="q-num">Q2 — COMPETITIVE DISPLACEMENT</div><div class="q-text">"You're a Gartner Challenger now. What does the displacement conversation look like when you're going up against Staffbase in an enterprise deal — what's the moment it tips?"</div></div>
+<div class="q-card"><div class="q-num">Q3 — PRE-SALES PROXIMITY</div><div class="q-text">"The pre-sales support piece in the JD is interesting — how close is the PM to the actual sales motion? Are you in the room for technical discovery calls?"</div></div>
+<div class="q-card"><div class="q-num">Q4 — SUCCESS DEFINITION</div><div class="q-text">"What does success look like at 6 months — and what would tell you the person you hired is operating at the level you actually need?"</div></div></div>`
+  },
+  {
+    color:'#f59e0b', icon:'📊', name:'Feedback Loop', schedule:'Runs with every Daily Search',
+    desc:'Tracks every outcome. Calculates response rates by connection path, source, cover letter angle, and mission type. Recalibrates Tier 1/2 scoring as data accumulates. Gets sharper over time.',
+    lines:[
+      {t:'10:00:30',x:'accent bold',s:'Agent Kairova — Feedback Loop initializing...'},
+      {t:'10:00:30',x:'',s:'Loading tracker.json  ✓'},
+      {t:'',x:'',s:''},
+      {t:'10:00:31',x:'',s:'Calculating response rates by dimension...'},
+      {t:'',x:'dim',s:'  connection path   warm: 0/0  semi-warm: 0/0  cold: 0/0'},
+      {t:'',x:'dim',s:'  source category   greenhouse: 0/0  lever: 0/0  broad: 0/0'},
+      {t:'',x:'dim',s:'  cover letter angle signal-to-action: 0/0  trust-gap: 0/0'},
+      {t:'',x:'dim',s:'  company mission    employee-exp: 0/0  enterprise-ai: 0/0'},
+      {t:'',x:'',s:''},
+      {t:'10:00:32',x:'warn',s:'Scoring adjustments: INACTIVE  (threshold: 5 data points per dimension)'},
+      {t:'',x:'dim',s:'  Current: 0 applications submitted'},
+      {t:'',x:'',s:''},
+      {t:'10:00:32',x:'',s:'Reviewing open signals...'},
+      {t:'',x:'',s:'  ⏳ Blink interview — Monday Apr 28 · cold path · source: Workable'},
+      {t:'',x:'',s:'  ⏳ George Rogers outreach (Workhuman) — follow-up due Apr 30'},
+      {t:'',x:'',s:'  ⏳ Liz Pierce InMail (Microsoft Viva) — follow-up due Apr 30'},
+      {t:'',x:'',s:''},
+      {t:'10:00:33',x:'warn bold',s:'Stale roles flagged this run: 2'},
+      {t:'',x:'removed',s:'  Lattice (Built In NYC listing removed Jun 2025) → status: closed'},
+      {t:'',x:'removed',s:'  Culture Amp (Greenhouse 404) → status: closed'},
+      {t:'',x:'success',s:'  Live-check gate: now active for all future surfaced roles  ✓'},
+      {t:'',x:'',s:''},
+      {t:'10:00:33',x:'success',s:'tracker.json updated  ✓'},
+      {t:'',x:'',s:''},
+      {t:'',x:'dim',s:'  ──────────────────────────────────────────────────────'},
+      {t:'',x:'bold',s:'  Calibration activates at 5 applications  ·  0 submitted today'},
+      {t:'',x:'accent',s:'  → Apply to Workhuman today to start building signal'},
+      {t:'',x:'dim',s:'  ──────────────────────────────────────────────────────'},
+    ],
+    deliverable:`<div class="d-hdr"><div class="d-label">Agent 04 · Deliverable</div><div class="d-title">Performance Dashboard</div><div class="d-sub">Updated: April 24, 2026 · Accumulating · 0 applications submitted</div></div>
+<div class="d-sec"><div class="stat-grid"><div class="stat-card"><div class="stat-n">26</div><div class="stat-l">Live roles found</div></div><div class="stat-card"><div class="stat-n">4</div><div class="stat-l">Tier 1 this run</div></div><div class="stat-card"><div class="stat-n">0</div><div class="stat-l">Applications sent</div></div><div class="stat-card"><div class="stat-n">2</div><div class="stat-l">Stale caught</div></div></div></div>
+<div class="d-sec"><div class="d-sec-label">Response Rate by Dimension · Activates at 5 data points</div>
+<div style="margin-bottom:14px"><div style="font-size:9px;color:var(--text-muted);margin-bottom:8px;font-family:monospace;letter-spacing:1.5px;text-transform:uppercase">Connection Path</div>
+<div class="score-row"><div class="score-lbl">Warm</div><div class="score-track"><div class="score-fill" style="width:0%;background:#10b981"></div></div><div class="score-val">—</div></div>
+<div class="score-row"><div class="score-lbl">Semi-warm</div><div class="score-track"><div class="score-fill" style="width:0%;background:#f59e0b"></div></div><div class="score-val">—</div></div>
+<div class="score-row"><div class="score-lbl">Cold</div><div class="score-track"><div class="score-fill" style="width:0%;background:#6b7280"></div></div><div class="score-val">—</div></div></div>
+<div><div style="font-size:9px;color:var(--text-muted);margin-bottom:8px;font-family:monospace;letter-spacing:1.5px;text-transform:uppercase">Source Category</div>
+<div class="score-row"><div class="score-lbl">Greenhouse direct</div><div class="score-track"><div class="score-fill" style="width:0%;background:#f59e0b"></div></div><div class="score-val">—</div></div>
+<div class="score-row"><div class="score-lbl">Lever direct</div><div class="score-track"><div class="score-fill" style="width:0%;background:#f59e0b"></div></div><div class="score-val">—</div></div>
+<div class="score-row"><div class="score-lbl">Broad board</div><div class="score-track"><div class="score-fill" style="width:0%;background:#f59e0b"></div></div><div class="score-val">—</div></div></div></div>
+<div class="d-sec"><div class="d-sec-label">🔧 System Fix This Run</div><div class="d-box" style="border-left-color:#ef4444;font-size:13px;line-height:1.8"><strong>2 stale roles caught and removed</strong> — Lattice (removed Jun 2025) and Culture Amp (Greenhouse 404).<br><br>Live-check gate now active: every surfaced role must return a confirmed live application page before entering the tracker. Broad board listings get two checks.</div></div>
+<div class="d-sec"><div class="d-sec-label">Calibration Timeline</div><div style="font-size:13px;color:var(--text-muted);padding:11px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);line-height:1.7">First scoring adjustment activates after <strong>5 applications</strong>. At current pace, calibration could begin within the week. The system gets sharper every time you apply.</div></div>`
+  }
+];
+
+/* ── STATE ──────────────────────────────────────────────────── */
+let cur = 'dash', states = ['idle','idle','idle','idle'], paused = false, spd = 1;
+let votes = [{up:0,down:0},{up:0,down:0},{up:0,down:0},{up:0,down:0}];
+let voted = [null,null,null,null];
+let totalSignals = 0;
+
+const VOTE_NOTES = [
+  {
+    up:'Signal recorded. <strong>Warm path</strong> and <strong>employee-experience</strong> weighting increased. Agent will prioritize roles with similar attributes on future runs.',
+    down:'Signal recorded. Agent will deprioritize this profile type. If comp is the issue, raise your floor in the Comp Target slider — 15Five\'s ceiling ($170K) is below your stretch.'
+  },
+  {
+    up:'Signal recorded. <strong>AI + enterprise-experience</strong> stack reinforced. Agent will elevate roles that combine both mission tags on future runs.',
+    down:'Signal recorded. Semi-warm connection weight and Leapsome-category roles flagged for review. Agent will adjust scoring threshold for this profile type.'
+  },
+  {
+    up:'Signal recorded. <strong>People analytics</strong> and <strong>org-health</strong> mission tags boosted. Cold path accepted — agent notes you\'re open to cold applications at this mission alignment.',
+    down:'Signal recorded. Cold path penalty increased for org-health category roles. Agent will require warmer connection or higher score to surface similar roles at Tier 1.'
+  },
+  {
+    up:'Signal recorded. Note: this role\'s comp ceiling ($170K) is near your floor ($155K). Agent will reconsider comp threshold — or tag as borderline and surface with warning.',
+    down:'Signal recorded. <strong>Comp floor enforced.</strong> 15Five-category roles ($132K–$170K ceiling) will be downgraded to Tier 2 or excluded on future runs. Good signal.'
+  }
+];
+
+/* ── BUILD AGENT TABS ───────────────────────────────────────── */
+const tabsEl = document.getElementById('tabs');
+A.forEach((a,i) => {
+  tabsEl.innerHTML += `<button class="agent-tab" data-panel="a${i}" data-i="${i}" style="--tc:${a.color}">
+    <div class="tab-num">0${i+1}</div><div class="tab-name">${a.name}</div>
+    <div class="tab-status" id="ts${i}">Ready</div></button>`;
+});
+
+/* ── BUILD AGENT PANELS ─────────────────────────────────────── */
+const mainEl = document.getElementById('main');
+A.forEach((a,i) => {
+  const p = document.createElement('div');
+  p.className = 'agent-panel';
+  p.id = `p${i}`;
+  p.style.cssText = `--ac:${a.color}`;
+  p.innerHTML = `
+  <div class="idle-view">
+    <div class="idle-card">
+      <div class="idle-icon" style="background:${a.color}1a;border:1px solid ${a.color}33">${a.icon}</div>
+      <h1>${a.name}</h1><div class="idle-schedule">${a.schedule}</div>
+      <p>${a.desc}</p>
+      <button class="run-btn" style="background:${a.color}" onclick="run(${i})">▶ Run Agent ${i+1}</button>
+    </div>
+  </div>
+  <div class="running-view">
+    <div class="term-header">
+      <div class="term-title"><div class="term-dot" style="background:${a.color}"></div>agent-kairova · ${a.name.toLowerCase().replace(/ /g,'-')} · running</div>
+      <div class="term-actions"><button class="term-btn" id="pbtn${i}" onclick="togglePause()">⏸ Pause</button><button class="term-btn" onclick="skip(${i})">Skip →</button></div>
+    </div>
+    <div class="term-body" id="tb${i}"></div>
+    <div class="deliver-bar" id="db${i}"><button class="deliver-btn" style="background:${a.color}" onclick="showDel(${i})">Show Deliverable →</button></div>
+  </div>
+  <div class="complete-view">
+    <div class="split-term"><div class="term-header"><div class="term-title"><div class="term-dot" style="background:${a.color};animation:none;opacity:.3"></div>completed</div></div><div class="term-body" id="mini${i}"></div></div>
+    <div class="d-panel"><div class="d-inner" id="del${i}">${a.deliverable}</div>
+    ${i<3?`<div class="next-bar"><span class="next-hint">Agent ${i+2} is ready</span><button class="next-btn" style="background:${A[i+1].color}" onclick="switchTo('a${i+1}')">Next: ${A[i+1].name} →</button></div>`:`<div class="next-bar" style="justify-content:center"><span style="font-size:12px;color:var(--text-muted)">All four agents complete. Agent Kairova is running.</span></div>`}
+    </div>
+  </div>`;
+  mainEl.appendChild(p);
+});
+
+/* ── TABS ────────────────────────────────────────────────────── */
+document.querySelectorAll('.agent-tab').forEach(t => t.onclick = () => switchTo(t.dataset.panel));
+document.querySelector('[data-panel="dash"]').onclick = () => switchTo('dash');
+
+function switchTo(panel) {
+  cur = panel;
+  document.querySelectorAll('.agent-panel,.dash-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+  if (panel === 'dash') {
+    document.getElementById('dash-panel').classList.add('active');
+    document.querySelector('[data-panel="dash"]').classList.add('active');
+  } else {
+    const i = parseInt(panel.slice(1));
+    document.getElementById(`p${i}`).classList.add('active');
+    document.querySelectorAll('.agent-tab[data-panel]')[i+1].classList.add('active');
+  }
+}
+
+/* ── THEME TOGGLE ────────────────────────────────────────────── */
+function toggleTheme() {
+  const html = document.documentElement;
+  html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  // Update slider track fill in new theme
+  updateSliderTrack();
+}
+
+/* ── COMP SLIDER ─────────────────────────────────────────────── */
+const slider = document.getElementById('comp-slider');
+const dispVal = document.getElementById('comp-display-val');
+
+function updateSliderTrack() {
+  const min = +slider.min, max = +slider.max, val = +slider.value;
+  const pct = ((val - min) / (max - min) * 100).toFixed(1) + '%';
+  slider.style.setProperty('--pct', pct);
+}
+
+slider.addEventListener('input', () => {
+  const val = +slider.value;
+  dispVal.textContent = '$' + val.toLocaleString();
+  updateSliderTrack();
+});
+updateSliderTrack();
+
+/* ── FEEDBACK / VOTING ───────────────────────────────────────── */
+function vote(idx, dir) {
+  if (voted[idx] === dir) return; // already voted this way
+  const prev = voted[idx];
+  if (prev) {
+    // remove previous vote
+    votes[idx][prev]--;
+    document.getElementById(`fc-${idx}-${prev}`).classList.remove('voted');
+    totalSignals--;
+  } else {
+    totalSignals++;
+  }
+  votes[idx][dir]++;
+  voted[idx] = dir;
+  document.getElementById(`fc-${idx}-${dir}`).classList.add('voted');
+  document.getElementById(`fc-${idx}-up-ct`).textContent = votes[idx].up || 0;
+  document.getElementById(`fc-${idx}-down-ct`).textContent = votes[idx].down || 0;
+  // show note
+  const noteEl = document.getElementById(`fc-${idx}-note`);
+  noteEl.innerHTML = VOTE_NOTES[idx][dir];
+  noteEl.classList.add('show');
+  updateLearning();
+}
+
+function updateLearning() {
+  const max = 20, milestone5 = 5, milestone10 = 10;
+  const pct = Math.min(totalSignals / max * 100, 100);
+  document.getElementById('lp-fill').style.width = pct + '%';
+  document.getElementById('lp-count').textContent = totalSignals + ' signal' + (totalSignals !== 1 ? 's' : '') + ' collected';
+  document.getElementById('learning-badge').textContent = totalSignals < milestone5
+    ? `${totalSignals} / ${milestone5} signals to calibration`
+    : totalSignals < milestone10
+    ? `✓ Score adjustment active · ${totalSignals} signals`
+    : `✓ Tier recalibration active · ${totalSignals} signals`;
+  // milestones
+  if (totalSignals >= milestone5) document.getElementById('ms-5').classList.add('reached');
+  if (totalSignals >= milestone10) document.getElementById('ms-10').classList.add('reached');
+  if (totalSignals >= 20) document.getElementById('ms-20').classList.add('reached');
+  // desc
+  const desc = document.getElementById('lp-desc');
+  if (totalSignals === 0) {
+    desc.textContent = 'No signals yet. Rate your recommendations above to start training the scoring model. Once you hit 5 signals, the agent begins adjusting Tier 1/2 thresholds to match your actual preferences.';
+  } else if (totalSignals < milestone5) {
+    desc.textContent = `${totalSignals} signal${totalSignals > 1 ? 's' : ''} collected. ${milestone5 - totalSignals} more until the agent starts adjusting its scoring model. Keep rating.`;
+  } else if (totalSignals < milestone10) {
+    desc.innerHTML = '<strong>Score adjustment active.</strong> The agent is now weighting your preferred mission tags and connection paths more heavily in its Tier 1/2 scoring. 10 signals unlocks full tier recalibration.';
+  } else {
+    desc.innerHTML = '<strong>Tier recalibration active.</strong> The agent is continuously adjusting what gets surfaced to you based on your feedback patterns. The signal is real now.';
+  }
+}
+
+/* ── SPEED ───────────────────────────────────────────────────── */
+document.querySelectorAll('[data-spd]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-spd]').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); spd = +b.dataset.spd;
+});
+
+/* ── RUN AGENT ───────────────────────────────────────────────── */
+function run(i) {
+  states[i] = 'running';
+  const panel = document.getElementById(`p${i}`);
+  panel.classList.add('s-running');
+  setTabStatus(i,'t-running','● Running');
+  const tb = document.getElementById(`tb${i}`);
+  tb.innerHTML = '';
+  let li = 0;
+  function next() {
+    if (paused) { setTimeout(next, 100); return; }
+    if (li >= A[i].lines.length) {
+      const c = document.createElement('span');
+      c.className = 'cursor'; c.style.background = A[i].color;
+      tb.appendChild(c); tb.scrollTop = 9999;
+      setTimeout(() => document.getElementById(`db${i}`).classList.add('show'), 400);
+      return;
+    }
+    const ln = A[i].lines[li++];
+    const delay = ln.t ? Math.round(170 * spd) : Math.round(70 * spd);
+    setTimeout(() => {
+      const el = document.createElement('div'); el.className = 'tl';
+      el.innerHTML = `<span class="tl-time">${ln.t || ''}</span><span class="tl-text ${ln.x || ''}">${ln.s}</span>`;
+      tb.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('vis'));
+      tb.scrollTop = 9999; next();
+    }, delay);
+  }
+  next();
+}
+
+function skip(i) {
+  const tb = document.getElementById(`tb${i}`);
+  tb.innerHTML = A[i].lines.map(l => `<div class="tl vis"><span class="tl-time">${l.t||''}</span><span class="tl-text ${l.x||''}">${l.s}</span></div>`).join('');
+  tb.scrollTop = 9999;
+  document.getElementById(`db${i}`).classList.add('show');
+}
+
+function showDel(i) {
+  const full = document.getElementById(`tb${i}`);
+  document.getElementById(`mini${i}`).innerHTML = full.innerHTML;
+  const panel = document.getElementById(`p${i}`);
+  panel.classList.remove('s-running'); panel.classList.add('s-complete');
+  states[i] = 'complete'; setTabStatus(i,'t-done','✓ Done');
+}
+
+function togglePause() {
+  paused = !paused;
+  document.querySelectorAll('[id^=pbtn]').forEach(b => b.textContent = paused ? '▶ Resume' : '⏸ Pause');
+}
+
+function setTabStatus(i, cls, txt) {
+  document.getElementById(`ts${i}`).textContent = txt;
+  const tabs = document.querySelectorAll('.agent-tab[data-i]');
+  tabs[i].classList.remove('t-running','t-done');
+  if (cls) tabs[i].classList.add(cls);
+}
+
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); togglePause(); } });
+</script>
+</body>
+</html>
